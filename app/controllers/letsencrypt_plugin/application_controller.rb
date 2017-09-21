@@ -1,12 +1,14 @@
 module LetsencryptPlugin
   class ApplicationController < ActionController::Base
-    before_action :challenge_response, only: [:index]
-    before_action :validate_length, only: [:index]
+    # before_action :challenge_response, only: [:index]
+    # before_action :validate_length, only: [:index]
     protect_from_forgery with: :exception
 
     def index
       # There is only one item in DB with challenge response from our task
       # we will use it to render plain text response
+      challenge_response
+      validate_length
       render plain: @response.response, status: :ok
     end
 

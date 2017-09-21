@@ -9,7 +9,7 @@ module LetsencryptPlugin
       # we will use it to render plain text response
       challenge_response
       validate_length
-      render plain: @response.response, status: :ok
+      render text: @response.response #, status: :ok
     end
 
     private

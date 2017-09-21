@@ -5,7 +5,8 @@ module LetsencryptPlugin
     def store_content
       ch = LetsencryptPlugin::Challenge.first
       ch = LetsencryptPlugin::Challenge.new if ch.nil?
-      ch.update(response: @content)
+      ch.response = @content
+      ch.save
     end
   end
 end

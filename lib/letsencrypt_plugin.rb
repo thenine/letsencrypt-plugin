@@ -28,28 +28,37 @@ module LetsencryptPlugin
     def generate_certificate
       register
       domains = @options[:domain].split(' ')
+      Rails.logger.info('Creating order')
+      @order = client.new_order(identifiers: domains)
+      Rails.logger.info('- Order created')
       return unless authorize_and_handle_challenge(domains)
       # We can now request a certificate
-      Rails.logger.info('Creating CSR...')
-      @cert = @client.new_certificate(Acme::Client::CertificateRequest.new(names: domains))
-      save_certificate(@cert)
-      Rails.logger.info('Certificate has been generated.')
+      Rails.logger.info('Creating CSR')
+      @csr = Acme::Client::CertificateRequest.new(names: domains)
+      Rails.logger.info('- CSR created')
+      Rails.logger.info('Finalizing order')
+      @cert = finalize_order(@csr)
+      Rails.logger.info('- Order finalized')
+      save_certificate(@csr, @cert)
+      Rails.logger.info('Certificate has been generated')
     end
 
     def authorize_and_handle_challenge(domains)
       result = false
-      domains.each do |domain|
-        authorize(domain)
+      @order.authorizations.each do |authorization|
+        Rails.logger.info("Sending authorization request for: #{authorization.domain}")
+        @authorization = authorization
         handle_challenge
         request_challenge_verification
         result = valid_verification_status
+        Rails.logger.info('- Verification valid')
         break unless result
       end
       result
     end
 
     def client
-      @client ||= Acme::Client.new(private_key: private_key, endpoint: @options[:endpoint])
+      @client ||= Acme::Client.new(private_key: private_key, directory: @options[:directory])
     end
 
     def private_key
@@ -82,21 +91,15 @@ module LetsencryptPlugin
     end
 
     def register
-      Rails.logger.info('Trying to register at Let\'s Encrypt service...')
-      registration = client.register(contact: "mailto:#{@options[:email]}")
-      registration.agree_terms
-      Rails.logger.info('Registration succeed.')
+      Rails.logger.info('Trying to register at Let\'s Encrypt service')
+      registration = client.new_account(contact: "mailto:#{@options[:email]}", terms_of_service_agreed: true)
+      Rails.logger.info("- Registered as #{@options[:email]}")
     rescue => e
       Rails.logger.info("#{e.class} - #{e.message}. Already registered.")
     end
 
     def common_domain_name
       @domain ||= @options[:cert_name] || @options[:domain].split(' ').first.to_s
-    end
-
-    def authorize(domain = common_domain_name)
-      Rails.logger.info("Sending authorization request for: #{domain}...")
-      @authorization = client.authorize(domain: domain)
     end
 
     def store_challenge(challenge)
@@ -109,37 +112,49 @@ module LetsencryptPlugin
     end
 
     def handle_challenge
-      @challenge = @authorization.http01
+      @challenge = @authorization.http
       store_challenge(@challenge)
     end
 
     def request_challenge_verification
-      @challenge.request_verification
+      Rails.logger.info('- Requesting challenge verification')
+      @challenge.request_validation
     end
 
     def wait_for_status(challenge)
-      Rails.logger.info('Waiting for challenge status...')
+      Rails.logger.info('- Waiting for challenge status')
       counter = 0
-      while challenge.verify_status == 'pending' && counter < 10
+      while challenge.status == 'pending' && counter < 10
+        Rails.logger.info("-- Counter: #{counter}")
         sleep(1)
+        challenge.reload
         counter += 1
       end
     end
 
     def valid_verification_status
       wait_for_status(@challenge)
-      return true if @challenge.verify_status == 'valid'
+      return true if @challenge.status == 'valid'
       Rails.logger.error('Challenge verification failed! ' \
         "Error: #{@challenge.error['type']}: #{@challenge.error['detail']}")
       false
     end
 
+    def finalize_order(csr)
+      @order.finalize(csr: csr)
+      while @order.status == 'processing'
+        sleep(1)
+        challenge.reload
+      end
+      @order.certificate
+    end
+
     # Save the certificate and key
-    def save_certificate(certificate)
+    def save_certificate(csr, certificate)
       return unless certificate
       return HerokuOutput.new(common_domain_name, certificate).output unless ENV['DYNO'].nil?
       output_dir = File.join(Rails.root, @options[:output_cert_dir])
-      return FileOutput.new(common_domain_name, certificate, output_dir).output if File.directory?(output_dir)
+      return FileOutput.new(csr, certificate, output_dir).output if File.directory?(output_dir)
       Rails.logger.error("Output directory: '#{output_dir}' does not exist!")
     end
   end

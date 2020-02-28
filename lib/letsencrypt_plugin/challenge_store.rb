@@ -12,7 +12,7 @@ module LetsencryptPlugin
     protected
 
     def display_info
-      Rails.logger.info('Storing challenge information...')
+      Rails.logger.info('- Storing challenge information')
     end
   end
 end

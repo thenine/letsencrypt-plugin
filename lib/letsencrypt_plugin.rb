@@ -51,7 +51,7 @@ module LetsencryptPlugin
         handle_challenge
         request_challenge_verification
         result = valid_verification_status
-        Rails.logger.info('- Verification valid')
+        Rails.logger.info('- Verification valid') if result
         break unless result
       end
       result
@@ -135,8 +135,8 @@ module LetsencryptPlugin
     def valid_verification_status
       wait_for_status(@challenge)
       return true if @challenge.status == 'valid'
-      Rails.logger.error('Challenge verification failed! ' \
-        "Error: #{@challenge.error['type']}: #{@challenge.error['detail']}")
+      Rails.logger.error('- Challenge verification failed')
+      Rails.logger.error("Error: #{@challenge.error['type']}: #{@challenge.error['detail']}")
       false
     end
 

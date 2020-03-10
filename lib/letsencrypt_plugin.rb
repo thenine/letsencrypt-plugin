@@ -91,7 +91,7 @@ module LetsencryptPlugin
     end
 
     def register
-      Rails.logger.info('Trying to register at Let\'s Encrypt service')
+      Rails.logger.info("Trying to register at: #{@options[:directory]}")
       registration = client.new_account(contact: "mailto:#{@options[:email]}", terms_of_service_agreed: true)
       Rails.logger.info("- Registered as #{@options[:email]}")
     rescue => e
@@ -123,12 +123,9 @@ module LetsencryptPlugin
 
     def wait_for_status(challenge)
       Rails.logger.info('- Waiting for challenge status')
-      counter = 0
-      while challenge.status == 'pending' && counter < 10
-        Rails.logger.info("-- Counter: #{counter}")
-        sleep(1)
+      while challenge.status == 'pending'
+        sleep(2)
         challenge.reload
-        counter += 1
       end
     end
 

@@ -1,3 +1,5 @@
+require 'ostruct'
+
 module LetsencryptPlugin
   Config = Class.new(OpenStruct)
 

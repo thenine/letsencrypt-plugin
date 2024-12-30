@@ -2,12 +2,12 @@ require 'letsencrypt_plugin/certificate_output'
 
 module LetsencryptPlugin
   class HerokuOutput < CertificateOutput
-    def initialize(csr, cert)
-      super(csr, cert)
+    def initialize(domain, cert)
+      super(domain, cert)
     end
 
-    def output_cert(name, cert_content)
-      Rails.logger.info("====== #{name} ======")
+    def output_cert(cert_type, cert_content)
+      Rails.logger.info("====== #{@domain}-#{cert_type} ======")
       puts cert_content
     end
 

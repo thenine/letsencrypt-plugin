@@ -1,7 +1,7 @@
 module LetsencryptPlugin
   class CertificateOutput
-    def initialize(csr, cert)
-      @csr = csr
+    def initialize(domain, cert)
+      @domain = domain
       @certificate = cert
     end
 
